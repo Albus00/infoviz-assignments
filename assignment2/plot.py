@@ -34,7 +34,7 @@ with open('data1.csv', 'r') as file:
     max_y = max(max_y, y)
     min_x = min(min_x, x)
     min_y = min(min_y, y)
-    data.append((x, -y, line[2]))
+    data.append((x, y, line[2]))
 
 print(min_x, max_x, min_y, max_y)
 
@@ -42,7 +42,7 @@ print(min_x, max_x, min_y, max_y)
 style_mapping = {'a': 'pink', 'b': 'blue', 'c': 'red','foo': 'green', 'bar': 'yellow', 'baz': 'orange'}
 for entry in data:
   x = ((entry[0] + max_x) / (2*max_x)) * 600 + 50
-  y = ((entry[1] + max_y) / (2*max_y)) * 600 + 50
+  y = ((-entry[1] + max_y) / (2*max_y)) * 600 + 50
 
   letterSet = entry[2]
   
@@ -91,14 +91,16 @@ create_legend(canvas)
 
 def calculate_distance(point1, point2):
     return math.sqrt((point1[0] - point2[0])**2 + (point1[1] - point2[1])**2)
+
 def right_click(event):
     x, y = event.x, event.y
 
     # Reverse the scaling done when rendering the points
     x  = ((x - 50) * 2 * max_x) / 600 - max_x;
-    y  = -((y - 50) * 2 * max_y) / 600 - max_y;
+    y  = ((y - 50) * 2 * max_y) / 600 - max_y;
+    y = -y; # Invert y axis because it has to apparently?
 
-    print(x,y);
+    print(get_point(x, y));
 
     # Calculate distances to all points
     distances = [(calculate_distance((x, y), (point[0], point[1])), point) for point in data]
@@ -111,6 +113,16 @@ def right_click(event):
         canvas.create_rectangle(point[0] - 3, point[1] - 3, point[0] + 3,point[1] + 3, fill=style_mapping.get(letterSet, 'orange'))
 
 canvas.bind("<Button-3>", right_click)
+
+# create a function that checks through the data and finds if there is a point around the mouse click
+def get_point(x, y):
+    MARGIN = 1;
+    for point in data:
+        print(point, x, y)
+        if point[0] > x - MARGIN and point[0] < x + MARGIN and point[1] > y - MARGIN and point[1] < y + MARGIN:
+            return point
+    return False
+
 
 # Start the Tkinter event loop
 window.mainloop()
