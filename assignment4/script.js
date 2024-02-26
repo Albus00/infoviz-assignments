@@ -3,24 +3,97 @@ import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
 // Declare the global data variable
 let data1;
 let data2;
+let leftEpisodes = [];
+let rightEpisodes = [];
+
+let episodeSelector1 = d3.select("#episodeSelector1")
+let episodeSelector2 = d3.select("#episodeSelector2")
+
+//get checked episodes and update graph
+episodeSelector1.on("change", (event) => {
+  let checkedEpisodes = [];
+  d3.selectAll(".l-episode").each(function (d) {
+    let cb = d3.select(this);
+    if (cb.property("checked")) {
+      checkedEpisodes.push(cb.property("value"));
+    }
+  });
+  leftEpisodes = checkedEpisodes;
+  getEpisode("left", leftEpisodes);
+});
+
+episodeSelector2.on("change", (event) => {
+  let checkedEpisodes = [];
+  d3.selectAll("input").each(function (d) {
+    let cb = d3.select(this);
+    if (cb.property("checked")) {
+      checkedEpisodes.push(cb.property("value"));
+    }
+  });
+  updateEpisodes("right", checkedEpisodes);
+});
 
 // Import data from selected episode
-async function getEpisode(field) {
-  console.log("field: ", field);
-  let episode = document.getElementById(field).value;
-  await import('./starwars-interactions/starwars-episode-' + episode + '-interactions-allCharacters.json', {
-    assert: { type: 'json' }
-  }).then(({ default: data }) => {
-    field === "left" ? (
-      svg1.selectAll("*").remove(), // Clear the svg1
-      updateDataset1(data),         // Update the dataset for svg1
-      data1 = data                  // Make the data global
-    ) : field === "right" ? (
-      svg2.selectAll("*").remove(), // Clear the svg2
-      updateDataset2(data),         // Update the dataset for svg2
-      data2 = data                  // Make the data global
-    ) : null;
+async function getEpisode(field, episodes) {
+  episodes.forEach(async (episode) => {
+    await import('./starwars-interactions/starwars-episode-' + episode + '-interactions-allCharacters.json', {
+      assert: { type: 'json' }
+    }).then(({ default: data }) => {
+      if (field === "left") {
+        data1 = updateDataset(data1, data);
+        console.log("1");
+      }
+      else if (field === "right") {
+        updateDataset(data2, data);
+      }
+    });
   });
+  if (field === "left") {
+    svg1.selectAll("*").remove(); // Clear the svg1
+    console.log("1");
+    updateCanvas1(data1);         // Update the dataset for svg1
+  } else if (field === "right") {
+    svg2.selectAll("*").remove(); // Clear the svg2
+    updateCanvas2(data2);         // Update the dataset for svg2
+  }
+}
+
+// Add new data to the dataset
+function updateDataset(data, addedData) {
+  if (data === undefined) {
+    return addedData;
+  }
+  addedData.nodes.forEach(node => {
+    if (checkName(node.name, data)) {
+      // Character already exists in the dataset
+      data.nodes.forEach(dataNode => {
+        if (dataNode.name === node.name) {
+          dataNode.value += node.value;
+        }
+      });
+
+      // Update the links in the addedData
+      addedData.links.forEach(link => {
+        if (link.source.name === node.name) {
+          link.source = node.name;
+        }
+        else if (link.target.name === node.name) {
+          link.target += node.name;
+        }
+      });
+    }
+  });
+}
+
+// Create a function that finds all the links connected to a node
+function findLinks(nodeName, data) {
+  let links = [];
+  data.links.forEach(link => {
+    if (link.source.name === nodeName || link.target.name === nodeName) {
+      links.push(link);
+    }
+  });
+  return links;
 }
 
 // Write a function that highlights the node from another network when hovering over a node, based on the class name
@@ -57,8 +130,6 @@ function highlightNode(nodeName, toHighlight) {
 
 // Create a function that highlights the links connected to a node
 function highlightLinks(nodeName, toHighlight) {
-  let highlightLinks = [];
-
   // Loop through each link
   data1.links.forEach(link => {
     // Check if the link is connected to the specified node
@@ -213,6 +284,8 @@ let height = window.innerHeight - 20 - menuHeight;
 // Declare the layout
 let layout, layout2;
 
+
+
 // Change the window width and height when the window is resized
 window.onresize = function () {
   width = window.innerWidth / 2 - 5;
@@ -230,21 +303,13 @@ window.onresize = function () {
 
 };
 
-// Initiate the two node networks
-getEpisode("left");
-getEpisode("right");
-
-// Add event listeners to the dropdown menus
-document.getElementById("left").addEventListener("change", () => getEpisode("left"));
-document.getElementById("right").addEventListener("change", () => getEpisode("right"));
-
 //#region SVG1
 // Create the SVG container for the first node network
 let svg1 = d3.create("svg")
   .attr("width", width)
   .attr("height", height);
 
-function updateDataset1(data) {
+function updateCanvas1(data) {
   // Define the data for the nodes and links
   let nodes_data = data.nodes
   let links_data = data.links
@@ -285,7 +350,7 @@ let svg2 = d3.create("svg")
   .attr("width", width)
   .attr("height", height);
 
-function updateDataset2(data) {
+function updateCanvas2(data) {
   // Define the data for the second set of nodes and links
   let nodes_data = data.nodes;
   let links_data = data.links;
