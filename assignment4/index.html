@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <title>Star Wars Visualization</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+  <div id="menu">
+    <h1>Star Wars Character Interactions</h1>
+    <div id="selectors">
+      <select id="left">
+        <option value="1">Episode I: The Phantom Menace</option>
+        <option value="2">Episode II: Attack of the Clones</option>
+        <option value="3">Episode III: Revenge of the Sith</option>
+        <option value="4">Episode IV: A New Hope</option>
+        <option selected value="5">Episode V: The Empire Strikes Back</option>
+        <option value="6">Episode VI: Return of the Jedi</option>
+        <option value="7">Episode VII: The Force Awakens</option>
+      </select>
+      <select id="right">
+        <option value="1">Episode I: The Phantom Menace</option>
+        <option value="2">Episode II: Attack of the Clones</option>
+        <option value="3">Episode III: Revenge of the Sith</option>
+        <option selected value="4">Episode IV: A New Hope</option>
+        <option value="5">Episode V: The Empire Strikes Back</option>
+        <option value="6">Episode VI: Return of the Jedi</option>
+        <option value="7">Episode VII: The Force Awakens</option>
+      </select>
+    </div>
+  </div>
+  <div id="container" />
+  <div class="tooltips" id="tooltips-left"></div>
+  <div class="tooltips" id="tooltips-right" style="left: calc(50% + 5px);"></div>
+  <script type="module" src="script.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,5 @@
+We used different shapes and colors to differentiate the different data types (a, b, c resp. foo, bar, baz)
+A selected point is visualized with a big, round and green point. The nearest five given a gray color and round shape.
+When focusing on a data point and placing it in origo the different quadrants are visualized with a new set of colors, different from the default ones.
+
+The controls for the mouse is the default ones provided in the instructions, eg. left- and right-click
