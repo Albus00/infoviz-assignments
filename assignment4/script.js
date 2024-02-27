@@ -123,6 +123,19 @@ function updateDataset(data, addedData) {
       }
     });
   });
+
+  // // Remove duplicate links
+  // addedData.links.forEach(addLink => {
+  //   data.links.forEach(link => {
+  //     if (link.source.name === addLink.source.name && link.target.name === addLink.target.name) {
+  //       // Link already exists in the dataset and needs to be updated
+  //       link.value += addLink.value;
+  //       // Remove the duplicate link from the addedData
+  //       addedData.links = addedData.links.filter(link => link.source.name !== addLink.source.name && link.target.name !== addLink.target.name);
+  //     }
+  //   });
+  // });
+
   data.nodes = data.nodes.concat(addedData.nodes);
   data.links = data.links.concat(addedData.links);
   console.log("data: ", data);
@@ -243,7 +256,7 @@ function checkName(name, data) {
   let result = false;
   data.nodes.forEach(node => {
     if (node.name === name) {
-      result = true;
+      result = node;
     }
   });
   return result;
@@ -253,9 +266,10 @@ function generateTooltips(node) {
   // Left network
   let height = 5;
   let leftTooltip = document.getElementById("tooltips-left");
-  if (checkName(node.name, data1)) {
-    let interactions = findInteractions(node, data1);
-    leftTooltip.innerHTML = "<div><h3>" + node.name + "</h3><h3>" + node.value + "</h3></div>";
+  let char;
+  if (char = checkName(node.name, data1)) {
+    let interactions = findInteractions(char, data1);
+    leftTooltip.innerHTML = "<div><h3>" + char.name + "</h3><h3>" + char.value + "</h3></div>";
     interactions.forEach(interaction => {
       leftTooltip.innerHTML += "<div><p>" + interaction[0] + "</p><p>" + interaction[1] + "</p></div>";
       height += 0.7;
@@ -270,9 +284,9 @@ function generateTooltips(node) {
   // Right network
   height = 5;
   let rightTooltip = document.getElementById("tooltips-right");
-  if (checkName(node.name, data2)) {
-    let interactions = findInteractions(node, data2);
-    rightTooltip.innerHTML = "<div><h3>" + node.name + "</h3><h3>" + node.value + "</h3></div>";
+  if (char = checkName(node.name, data2)) {
+    let interactions = findInteractions(char, data2);
+    rightTooltip.innerHTML = "<div><h3>" + char.name + "</h3><h3>" + char.value + "</h3></div>";
     interactions.forEach(interaction => {
       rightTooltip.innerHTML += "<div><p>" + interaction[0] + "</p><p>" + interaction[1] + "</p></div>";
       height += 0.7;
