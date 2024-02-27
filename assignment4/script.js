@@ -3,13 +3,42 @@ import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
 // Declare the global data variable
 let data1;
 let data2;
+let episodesData = [];
 let leftEpisodes = [];
 let rightEpisodes = [];
 
 let episodeSelector1 = d3.select("#episodeSelector1")
 let episodeSelector2 = d3.select("#episodeSelector2")
 
-//get checked episodes and update graph
+// Declare the chart dimensions and margins.
+let menuHeight = document.getElementById("menu").offsetHeight;
+let width = window.innerWidth / 2 - 5;
+let height = window.innerHeight - 20 - menuHeight;
+
+// Declare the layout
+let layout, layout2;
+
+// Create a function that imports the data from the all the episodes
+async function importAllEpisodes() {
+  for (let i = 1; i <= 7; i++) {
+    await import('./starwars-interactions/starwars-episode-' + i + '-interactions-allCharacters.json', {
+      assert: { type: 'json' }
+    }).then(({ default: data }) => {
+      episodesData.push(data);
+    });
+  }
+
+  episodesData.forEach((episode, index) => {
+    // connect the links to the nodes
+    episode.links.forEach(link => {
+      link.source = episode.nodes[link.source];
+      link.target = episode.nodes[link.target];
+    });
+  });
+
+}
+
+//get checked episodes
 episodeSelector1.on("change", (event) => {
   let checkedEpisodes = [];
   d3.selectAll(".l-episode").each(function (d) {
@@ -18,39 +47,47 @@ episodeSelector1.on("change", (event) => {
       checkedEpisodes.push(cb.property("value"));
     }
   });
+  data1 = undefined;
+  if (checkedEpisodes.length === 0) {
+    // No episodes are selected
+    svg1.selectAll("*").remove(); // Clear the svg1
+    return
+  }
   leftEpisodes = checkedEpisodes;
   getEpisode("left", leftEpisodes);
 });
 
 episodeSelector2.on("change", (event) => {
   let checkedEpisodes = [];
-  d3.selectAll("input").each(function (d) {
+  d3.selectAll(".r-episode").each(function (d) {
     let cb = d3.select(this);
     if (cb.property("checked")) {
+      console.log(cb.property("value"))
       checkedEpisodes.push(cb.property("value"));
     }
   });
-  updateEpisodes("right", checkedEpisodes);
+  data2 = undefined;
+  if (checkedEpisodes.length === 0) {
+    // No episodes are selected
+    svg2.selectAll("*").remove(); // Clear the svg1
+    return
+  }
+  rightEpisodes = checkedEpisodes;
+  getEpisode("right", rightEpisodes);
 });
 
 // Import data from selected episode
 async function getEpisode(field, episodes) {
-  episodes.forEach(async (episode) => {
-    await import('./starwars-interactions/starwars-episode-' + episode + '-interactions-allCharacters.json', {
-      assert: { type: 'json' }
-    }).then(({ default: data }) => {
-      if (field === "left") {
-        data1 = updateDataset(data1, data);
-        console.log("1");
-      }
-      else if (field === "right") {
-        updateDataset(data2, data);
-      }
-    });
+  console.log("episodes: ", episodesData);
+  episodes.forEach(episode => {
+    let selectedEpisode = episodesData[episode - 1];
+    field === "left" ?
+      data1 = updateDataset(data1, episodesData[episode - 1]) :
+      data2 = updateDataset(data2, episodesData[episode - 1]);
   });
+
   if (field === "left") {
     svg1.selectAll("*").remove(); // Clear the svg1
-    console.log("1");
     updateCanvas1(data1);         // Update the dataset for svg1
   } else if (field === "right") {
     svg2.selectAll("*").remove(); // Clear the svg2
@@ -60,29 +97,36 @@ async function getEpisode(field, episodes) {
 
 // Add new data to the dataset
 function updateDataset(data, addedData) {
+  console.log("addedData: ", addedData);
   if (data === undefined) {
     return addedData;
   }
-  addedData.nodes.forEach(node => {
-    if (checkName(node.name, data)) {
-      // Character already exists in the dataset
-      data.nodes.forEach(dataNode => {
-        if (dataNode.name === node.name) {
-          dataNode.value += node.value;
-        }
-      });
+  addedData.nodes.forEach(addNode => {
+    data.nodes.forEach(node => {
+      if (node.name == addNode.name) {
+        // Character already exists in the dataset and needs to be updated
+        // console.log("updated: ", node.name, addNode.name);
+        node.value += addNode.value;
 
-      // Update the links in the addedData
-      addedData.links.forEach(link => {
-        if (link.source.name === node.name) {
-          link.source = node.name;
-        }
-        else if (link.target.name === node.name) {
-          link.target += node.name;
-        }
-      });
-    }
+        // Update the links to the character
+        addedData.links.forEach(link => {
+          if (link.source.name === addNode.name) {
+            link.source = node;
+          }
+          else if (link.target.name === addNode.name) {
+            link.target = node;
+          }
+
+        });
+        // Remove the duplicate node from the addedData
+        addedData.nodes = addedData.nodes.filter(node => node.name !== addNode.name);
+      }
+    });
   });
+  data.nodes = data.nodes.concat(addedData.nodes);
+  data.links = data.links.concat(addedData.links);
+  console.log("data: ", data);
+  return data;
 }
 
 // Create a function that finds all the links connected to a node
@@ -134,7 +178,7 @@ function highlightLinks(nodeName, toHighlight) {
   data1.links.forEach(link => {
     // Check if the link is connected to the specified node
     if (link.source.name === nodeName || link.target.name === nodeName) {
-      console.log("link: ", link.source.name, nodeName);
+      console.log("link: ", link.target.name, nodeName);
       // go through all the classes that contains the words link_ and the source and target names
       let className = ".link_" + formatClassName(link.source.name) + "_" + formatClassName(link.target.name);
       if (toHighlight) {
@@ -196,13 +240,13 @@ function findInteractions(node, data) {
 
 // Create a function that checks if name is in dataset
 function checkName(name, data) {
-  let found = false;
+  let result = false;
   data.nodes.forEach(node => {
     if (node.name === name) {
-      found = true;
+      result = true;
     }
   });
-  return found;
+  return result;
 }
 
 function generateTooltips(node) {
@@ -275,16 +319,6 @@ function createLinks(links_data, svg, isHighlighted) {
     .attr("class", (d) => "link_" + formatClassName(d.source.name) + "_" + formatClassName(d.target.name))
     .attr("stroke", "black");
 }
-
-// Declare the chart dimensions and margins.
-let menuHeight = document.getElementById("menu").offsetHeight;
-let width = window.innerWidth / 2 - 5;
-let height = window.innerHeight - 20 - menuHeight;
-
-// Declare the layout
-let layout, layout2;
-
-
 
 // Change the window width and height when the window is resized
 window.onresize = function () {
@@ -389,6 +423,9 @@ function updateCanvas2(data) {
 }
 
 //#endregion
+
+// Import all the episodes
+importAllEpisodes();
 
 // Append the SVG element.
 document.getElementById("container").append(svg1.node());
