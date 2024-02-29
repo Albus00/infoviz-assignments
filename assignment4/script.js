@@ -38,6 +38,20 @@ async function importAllEpisodes() {
 
 }
 
+// Create a function that fetches the links from a selected episode
+async function fetchEpisode(episode) {
+  return await fetch('./starwars-interactions/starwars-episode-' + episode + '-interactions-allCharacters.json')
+    .then(response => response.json())
+    .then(data => {
+      data.links.forEach(link => {
+        link.source = data.nodes[link.source];
+        link.target = data.nodes[link.target];
+      });
+      return data;
+    }
+    );
+}
+
 //get checked episodes
 episodeSelector1.on("change", (event) => {
   let checkedEpisodes = [];
@@ -62,7 +76,6 @@ episodeSelector2.on("change", (event) => {
   d3.selectAll(".r-episode").each(function (d) {
     let cb = d3.select(this);
     if (cb.property("checked")) {
-      console.log(cb.property("value"))
       checkedEpisodes.push(cb.property("value"));
     }
   });
@@ -77,31 +90,42 @@ episodeSelector2.on("change", (event) => {
 });
 
 // Import data from selected episode
-async function getEpisode(field, episodes) {
-  console.log("episodes: ", episodesData);
-  episodes.forEach(episode => {
-    let selectedEpisode = episodesData[episode - 1];
-    field === "left" ?
-      data1 = updateDataset(data1, episodesData[episode - 1]) :
-      data2 = updateDataset(data2, episodesData[episode - 1]);
+function getEpisode(field, episodes) {
+  let episodeFetch = new Promise((resolve, reject) => {
+    episodes.forEach(async (episode, index) => {
+      await fetchEpisode(episode).then(episode => {
+        if (field === "left") {
+          data1 = updateDataset(data1, episode);
+        } else {
+          data2 = updateDataset(data2, episode);
+        }
+      });
+      index == episodes.length - 1 ? resolve() : null;
+    })
   });
 
-  if (field === "left") {
-    svg1.selectAll("*").remove(); // Clear the svg1
-    updateCanvas1(data1);         // Update the dataset for svg1
-  } else if (field === "right") {
-    svg2.selectAll("*").remove(); // Clear the svg2
-    updateCanvas2(data2);         // Update the dataset for svg2
-  }
+  episodeFetch.then(() => {
+    console.log("RESOLVE: ", data1);
+    if (field === "left") {
+      svg1.selectAll("*").remove(); // Clear the svg1
+      updateCanvas1(data1);         // Update the dataset for svg1
+    } else if (field === "right") {
+      svg2.selectAll("*").remove(); // Clear the svg2
+      updateCanvas2(data2);         // Update the dataset for svg2
+    }
+  });
 }
 
 // Add new data to the dataset
 function updateDataset(data, addedData) {
-  console.log("addedData: ", addedData);
+  // Create a copy of the data
+  let addedNodes = [...addedData.nodes];
+  let addedLinks = addedData.links;
+
   if (data === undefined) {
-    return addedData;
+    return { nodes: addedNodes, links: addedLinks };
   }
-  addedData.nodes.forEach(addNode => {
+  addedNodes.forEach(addNode => {
     data.nodes.forEach(node => {
       if (node.name == addNode.name) {
         // Character already exists in the dataset and needs to be updated
@@ -109,48 +133,23 @@ function updateDataset(data, addedData) {
         node.value += addNode.value;
 
         // Update the links to the character
-        addedData.links.forEach(link => {
+        addedLinks.forEach(link => {
           if (link.source.name === addNode.name) {
             link.source = node;
           }
           else if (link.target.name === addNode.name) {
             link.target = node;
           }
-
         });
         // Remove the duplicate node from the addedData
-        addedData.nodes = addedData.nodes.filter(node => node.name !== addNode.name);
+        addedNodes = addedNodes.filter(node => node.name !== addNode.name);
       }
     });
   });
 
-  // // Remove duplicate links
-  // addedData.links.forEach(addLink => {
-  //   data.links.forEach(link => {
-  //     if (link.source.name === addLink.source.name && link.target.name === addLink.target.name) {
-  //       // Link already exists in the dataset and needs to be updated
-  //       link.value += addLink.value;
-  //       // Remove the duplicate link from the addedData
-  //       addedData.links = addedData.links.filter(link => link.source.name !== addLink.source.name && link.target.name !== addLink.target.name);
-  //     }
-  //   });
-  // });
-
-  data.nodes = data.nodes.concat(addedData.nodes);
-  data.links = data.links.concat(addedData.links);
-  console.log("data: ", data);
+  data.nodes = data.nodes.concat(addedNodes);
+  data.links = data.links.concat(addedLinks);
   return data;
-}
-
-// Create a function that finds all the links connected to a node
-function findLinks(nodeName, data) {
-  let links = [];
-  data.links.forEach(link => {
-    if (link.source.name === nodeName || link.target.name === nodeName) {
-      links.push(link);
-    }
-  });
-  return links;
 }
 
 // Write a function that highlights the node from another network when hovering over a node, based on the class name
@@ -187,48 +186,52 @@ function highlightNode(nodeName, toHighlight) {
 
 // Create a function that highlights the links connected to a node
 function highlightLinks(nodeName, toHighlight) {
-  // Loop through each link
-  data1.links.forEach(link => {
-    // Check if the link is connected to the specified node
-    if (link.source.name === nodeName || link.target.name === nodeName) {
-      console.log("link: ", link.target.name, nodeName);
-      // go through all the classes that contains the words link_ and the source and target names
-      let className = ".link_" + formatClassName(link.source.name) + "_" + formatClassName(link.target.name);
-      if (toHighlight) {
-        // Highlight the link
-        svg1.selectAll(className)
-          .attr("stroke", "red")
-          .attr("stroke-width", 2);
+  if (data1 !== undefined) {
+    // Loop through each link
+    data1.links.forEach(link => {
+      // Check if the link is connected to the specified node
+      if (link.source.name === nodeName || link.target.name === nodeName) {
+        //console.log("link: ", link.target.name, nodeName);
+        // go through all the classes that contains the words link_ and the source and target names
+        let className = ".link_" + formatClassName(link.source.name) + "_" + formatClassName(link.target.name);
+        if (toHighlight) {
+          // Highlight the link
+          svg1.selectAll(className)
+            .attr("stroke", "red")
+            .attr("stroke-width", 2);
+        }
+        else {
+          // Remove the highlight from the link
+          svg1.selectAll(className)
+            .attr("stroke", "black")
+            .attr("stroke-width", 1);
+        }
       }
-      else {
-        // Remove the highlight from the link
-        svg1.selectAll(className)
-          .attr("stroke", "black")
-          .attr("stroke-width", 1);
+    });
+  }
+  if (data2 !== undefined) {
+    // Loop through each link
+    data2.links.forEach(link => {
+      // Check if the link is connected to the specified node
+      if (link.source.name === nodeName || link.target.name === nodeName) {
+        console.log("link: ", link.source.name, nodeName);
+        // go through all the classes that contains the words link_ and the source and target names
+        let className = ".link_" + formatClassName(link.source.name) + "_" + formatClassName(link.target.name);
+        if (toHighlight) {
+          // Highlight the link
+          svg2.selectAll(className)
+            .attr("stroke", "red")
+            .attr("stroke-width", 2);
+        }
+        else {
+          // Remove the highlight from the link
+          svg2.selectAll(className)
+            .attr("stroke", "black")
+            .attr("stroke-width", 1);
+        }
       }
-    }
-  });
-  // Loop through each link
-  data2.links.forEach(link => {
-    // Check if the link is connected to the specified node
-    if (link.source.name === nodeName || link.target.name === nodeName) {
-      console.log("link: ", link.source.name, nodeName);
-      // go through all the classes that contains the words link_ and the source and target names
-      let className = ".link_" + formatClassName(link.source.name) + "_" + formatClassName(link.target.name);
-      if (toHighlight) {
-        // Highlight the link
-        svg2.selectAll(className)
-          .attr("stroke", "red")
-          .attr("stroke-width", 2);
-      }
-      else {
-        // Remove the highlight from the link
-        svg2.selectAll(className)
-          .attr("stroke", "black")
-          .attr("stroke-width", 1);
-      }
-    }
-  });
+    });
+  }
 }
 
 // Create a function that turns a string into lowercase and replaces all spaces with -
@@ -272,7 +275,7 @@ function generateTooltips(node) {
     leftTooltip.innerHTML = "<div><h3>" + char.name + "</h3><h3>" + char.value + "</h3></div>";
     interactions.forEach(interaction => {
       leftTooltip.innerHTML += "<div><p>" + interaction[0] + "</p><p>" + interaction[1] + "</p></div>";
-      height += 0.7;
+      height += 0.75;
       console.log("height: ", height);
     });
   }
@@ -289,7 +292,7 @@ function generateTooltips(node) {
     rightTooltip.innerHTML = "<div><h3>" + char.name + "</h3><h3>" + char.value + "</h3></div>";
     interactions.forEach(interaction => {
       rightTooltip.innerHTML += "<div><p>" + interaction[0] + "</p><p>" + interaction[1] + "</p></div>";
-      height += 0.7;
+      height += 0.75;
     });
   }
   else {
@@ -362,6 +365,8 @@ function updateCanvas1(data) {
   let nodes_data = data.nodes
   let links_data = data.links
 
+  console.log("links: ", links_data);
+
   // Create the graph layout
   layout = d3.forceSimulation(nodes_data)
     .force("charge", d3.forceManyBody().strength(-height / 2))
@@ -427,7 +432,7 @@ function updateCanvas2(data) {
       .attr("y2", function (d) { return d.target.y; });
 
     // Update the node and make it impossible to go out of the svg area
-    node.attr("cx", function (d) { return d.x = Math.max(10, Math.min(width * 2 - 50, d.x)); })
+    node.attr("cx", function (d) { return d.x = Math.max(10, Math.min(width - 20, d.x)); })
       .attr("cy", function (d) { return d.y = Math.max(10, Math.min(height - 10, d.y)); });
 
     // Update the label and make it switch side if node is at the end of the right half
