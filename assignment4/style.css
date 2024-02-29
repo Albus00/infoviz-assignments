@@ -10,6 +10,10 @@ svg {
   flex: auto;
 }
 
+svg text {
+  pointer-events: none;
+}
+
 .tooltips {
   width: 12rem;
   height: 5rem;
