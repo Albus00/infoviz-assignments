@@ -163,7 +163,6 @@ function findInteractions(node, data) {
   const checkDuplicates = (name) => {
     let result = false;
     interactions.forEach(interaction => {
-      console.log(interaction[0], name);
       if (interaction[0] === name) {
         result = true;
       }
@@ -178,7 +177,6 @@ function findInteractions(node, data) {
     }
     else if (link.target.name === node.name) {
       !checkDuplicates(link.source.name) ? interactions.push([link.source.name, link.source.value]) : null;
-      // console.log(node.name, "target", link.source.name);
     }
   });
   return interactions;
