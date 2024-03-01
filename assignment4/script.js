@@ -160,13 +160,25 @@ function checkName(name, data) {
 
 // Create a function that finds the node in the data set and returns which characters it interacts with
 function findInteractions(node, data) {
+  const checkDuplicates = (name) => {
+    let result = false;
+    interactions.forEach(interaction => {
+      console.log(interaction[0], name);
+      if (interaction[0] === name) {
+        result = true;
+      }
+    });
+    return result;
+  }
+
   let interactions = [];
   data.links.forEach(link => {
     if (link.source.name === node.name) {
-      interactions.push([link.target.name, link.target.value]);
+      !checkDuplicates(link.target.name) ? interactions.push([link.target.name, link.target.value]) : null;
     }
     else if (link.target.name === node.name) {
-      interactions.push([link.source.name, link.source.value]);
+      !checkDuplicates(link.source.name) ? interactions.push([link.source.name, link.source.value]) : null;
+      // console.log(node.name, "target", link.source.name);
     }
   });
   return interactions;
